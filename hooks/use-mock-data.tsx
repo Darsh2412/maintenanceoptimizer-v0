@@ -1,14 +1,34 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useSession } from "@/contexts/session-context"
+
+// Enhanced machine interface with plant and type
+interface EnhancedMachine {
+  machine_id: number
+  plant: string
+  type: "Slitter" | "Inspection"
+  health_score: number
+  status: string
+  temperature: number
+  vibration: number
+  load: number
+  rpm: number
+  current: number
+  energy_kw: number
+  idle_time_pct: number
+  rul_days: number
+}
 
 // Enhanced mock data generator with realistic variations and energy data
 export function useMockData() {
+  const { selectedPlant, selectedMachineType, simulatedMode, currentUser } = useSession()
+
   const [dashboardSummary, setDashboardSummary] = useState({
-    total_machines: 5,
-    healthy_machines: 3,
-    warning_machines: 1,
-    critical_machines: 1,
+    total_machines: 14,
+    healthy_machines: 8,
+    warning_machines: 3,
+    critical_machines: 3,
     avg_health_score: 78.5,
     recent_anomalies: 2,
     total_batches: 45,
@@ -20,7 +40,8 @@ export function useMockData() {
     last_updated: new Date().toLocaleString(),
   })
 
-  const [machineStatus, setMachineStatus] = useState([])
+  const [baseMachineStatus, setBaseMachineStatus] = useState<EnhancedMachine[]>([])
+  const [machineStatus, setMachineStatus] = useState<EnhancedMachine[]>([])
   const [alerts, setAlerts] = useState([])
   const [sensorHistory, setSensorHistory] = useState([])
   const [anomalies, setAnomalies] = useState([])
@@ -47,11 +68,20 @@ export function useMockData() {
 
     // Adjust base values based on machine health
     const machineHealthFactor = {
-      1: 1.0, // Healthy
-      2: 1.0, // Healthy
-      3: 1.2, // Warning
-      4: 1.0, // Healthy
-      5: 1.5, // Critical
+      1: 1.0,
+      2: 1.0,
+      3: 1.2,
+      4: 1.0,
+      5: 1.5,
+      6: 1.0,
+      7: 1.1,
+      8: 1.0,
+      9: 1.3,
+      10: 1.0,
+      11: 1.2,
+      12: 1.0,
+      13: 1.4,
+      14: 1.0,
     }
 
     const config = metricConfig[metric]
@@ -74,7 +104,7 @@ export function useMockData() {
       const dailyCycle = Math.sin((hourOfDay / 24) * Math.PI * 2)
 
       // Progressive trend (slight increase over time)
-      const trend = (i / (days * 24)) * config.trend * machineHealthFactor[machineId]
+      const trend = (i / (days * 24)) * config.trend * (machineHealthFactor[machineId] || 1.0)
 
       // Random noise
       const noise = (Math.random() - 0.5) * config.noise
@@ -84,7 +114,7 @@ export function useMockData() {
 
       // Calculate final value
       let value =
-        config.base * machineHealthFactor[machineId] +
+        config.base * (machineHealthFactor[machineId] || 1.0) +
         dailyCycle * config.amplitude * workingHoursFactor * weekendFactor +
         trend +
         noise +
@@ -115,81 +145,370 @@ export function useMockData() {
   }, [])
 
   // Generate machine status with realistic health scores and energy data
-  const generateMachineStatus = useCallback(() => {
-    const machines = [
+  const generateBaseMachineStatus = useCallback((): EnhancedMachine[] => {
+    const machines: EnhancedMachine[] = [
+      // Plant A - 4 machines (2 Slitter, 2 Inspection)
       {
         machine_id: 1,
-        health_score: 90 + (Math.random() * 5 - 2.5),
+        plant: "Plant A",
+        type: "Slitter",
+        health_score: 90,
         status: "Healthy",
-        temperature: 65 + (Math.random() * 3 - 1.5),
-        vibration: 0.3 + (Math.random() * 0.1 - 0.05),
-        load: 75 + (Math.random() * 6 - 3),
-        rpm: 2200 + (Math.random() * 100 - 50),
-        current: 32 + (Math.random() * 2 - 1),
-        energy_kw: 10.2 + (Math.random() * 1 - 0.5),
-        idle_time_pct: 12 + (Math.random() * 3 - 1.5),
-        rul_days: 180 + (Math.random() * 10 - 5),
+        temperature: 65,
+        vibration: 0.3,
+        load: 75,
+        rpm: 2200,
+        current: 32,
+        energy_kw: 10.2,
+        idle_time_pct: 12,
+        rul_days: 180,
       },
       {
         machine_id: 2,
-        health_score: 85 + (Math.random() * 5 - 2.5),
+        plant: "Plant A",
+        type: "Slitter",
+        health_score: 85,
         status: "Healthy",
-        temperature: 68 + (Math.random() * 3 - 1.5),
-        vibration: 0.4 + (Math.random() * 0.1 - 0.05),
-        load: 80 + (Math.random() * 6 - 3),
-        rpm: 2150 + (Math.random() * 100 - 50),
-        current: 35 + (Math.random() * 2 - 1),
-        energy_kw: 11.5 + (Math.random() * 1 - 0.5),
-        idle_time_pct: 15 + (Math.random() * 3 - 1.5),
-        rul_days: 165 + (Math.random() * 10 - 5),
+        temperature: 68,
+        vibration: 0.4,
+        load: 80,
+        rpm: 2150,
+        current: 35,
+        energy_kw: 11.5,
+        idle_time_pct: 15,
+        rul_days: 165,
       },
       {
         machine_id: 3,
-        health_score: 71 + (Math.random() * 5 - 2.5),
+        plant: "Plant A",
+        type: "Inspection",
+        health_score: 71,
         status: "Warning",
-        temperature: 72 + (Math.random() * 3 - 1.5),
-        vibration: 0.6 + (Math.random() * 0.15 - 0.075),
-        load: 85 + (Math.random() * 6 - 3),
-        rpm: 2050 + (Math.random() * 100 - 50),
-        current: 38 + (Math.random() * 2 - 1),
-        energy_kw: 13.8 + (Math.random() * 1.5 - 0.75),
-        idle_time_pct: 18 + (Math.random() * 4 - 2),
-        rul_days: 95 + (Math.random() * 10 - 5),
+        temperature: 72,
+        vibration: 0.6,
+        load: 85,
+        rpm: 2050,
+        current: 38,
+        energy_kw: 13.8,
+        idle_time_pct: 18,
+        rul_days: 95,
       },
       {
         machine_id: 4,
-        health_score: 88 + (Math.random() * 5 - 2.5),
+        plant: "Plant A",
+        type: "Inspection",
+        health_score: 88,
         status: "Healthy",
-        temperature: 63 + (Math.random() * 3 - 1.5),
-        vibration: 0.35 + (Math.random() * 0.1 - 0.05),
-        load: 70 + (Math.random() * 6 - 3),
-        rpm: 2300 + (Math.random() * 100 - 50),
-        current: 30 + (Math.random() * 2 - 1),
-        energy_kw: 9.8 + (Math.random() * 1 - 0.5),
-        idle_time_pct: 14 + (Math.random() * 3 - 1.5),
-        rul_days: 200 + (Math.random() * 10 - 5),
+        temperature: 63,
+        vibration: 0.35,
+        load: 70,
+        rpm: 2300,
+        current: 30,
+        energy_kw: 9.8,
+        idle_time_pct: 14,
+        rul_days: 200,
       },
+      // Plant B - 3 machines (2 Slitter, 1 Inspection)
       {
         machine_id: 5,
-        health_score: 45 + (Math.random() * 5 - 2.5),
+        plant: "Plant B",
+        type: "Slitter",
+        health_score: 45,
         status: "Critical",
-        temperature: 78 + (Math.random() * 4 - 2),
-        vibration: 1.2 + (Math.random() * 0.2 - 0.1),
-        load: 90 + (Math.random() * 6 - 3),
-        rpm: 1900 + (Math.random() * 100 - 50),
-        current: 42 + (Math.random() * 3 - 1.5),
-        energy_kw: 16.5 + (Math.random() * 2 - 1),
-        idle_time_pct: 25 + (Math.random() * 5 - 2.5),
-        rul_days: 25 + (Math.random() * 5 - 2.5),
+        temperature: 78,
+        vibration: 1.2,
+        load: 90,
+        rpm: 1900,
+        current: 42,
+        energy_kw: 16.5,
+        idle_time_pct: 25,
+        rul_days: 25,
+      },
+      {
+        machine_id: 6,
+        plant: "Plant B",
+        type: "Slitter",
+        health_score: 92,
+        status: "Healthy",
+        temperature: 64,
+        vibration: 0.28,
+        load: 73,
+        rpm: 2250,
+        current: 31,
+        energy_kw: 10.1,
+        idle_time_pct: 11,
+        rul_days: 210,
+      },
+      {
+        machine_id: 7,
+        plant: "Plant B",
+        type: "Inspection",
+        health_score: 76,
+        status: "Warning",
+        temperature: 70,
+        vibration: 0.55,
+        load: 82,
+        rpm: 2100,
+        current: 36,
+        energy_kw: 12.8,
+        idle_time_pct: 17,
+        rul_days: 120,
+      },
+      // Plant C - 5 machines (3 Slitter, 2 Inspection)
+      {
+        machine_id: 8,
+        plant: "Plant C",
+        type: "Slitter",
+        health_score: 89,
+        status: "Healthy",
+        temperature: 66,
+        vibration: 0.32,
+        load: 76,
+        rpm: 2180,
+        current: 33,
+        energy_kw: 10.5,
+        idle_time_pct: 13,
+        rul_days: 175,
+      },
+      {
+        machine_id: 9,
+        plant: "Plant C",
+        type: "Slitter",
+        health_score: 58,
+        status: "Critical",
+        temperature: 75,
+        vibration: 0.95,
+        load: 88,
+        rpm: 1950,
+        current: 40,
+        energy_kw: 15.2,
+        idle_time_pct: 22,
+        rul_days: 45,
+      },
+      {
+        machine_id: 10,
+        plant: "Plant C",
+        type: "Slitter",
+        health_score: 94,
+        status: "Healthy",
+        temperature: 62,
+        vibration: 0.25,
+        load: 68,
+        rpm: 2320,
+        current: 29,
+        energy_kw: 9.5,
+        idle_time_pct: 10,
+        rul_days: 220,
+      },
+      {
+        machine_id: 11,
+        plant: "Plant C",
+        type: "Inspection",
+        health_score: 73,
+        status: "Warning",
+        temperature: 71,
+        vibration: 0.58,
+        load: 84,
+        rpm: 2080,
+        current: 37,
+        energy_kw: 13.2,
+        idle_time_pct: 16,
+        rul_days: 110,
+      },
+      {
+        machine_id: 12,
+        plant: "Plant C",
+        type: "Inspection",
+        health_score: 87,
+        status: "Healthy",
+        temperature: 67,
+        vibration: 0.38,
+        load: 77,
+        rpm: 2160,
+        current: 34,
+        energy_kw: 11.1,
+        idle_time_pct: 14,
+        rul_days: 185,
+      },
+      // Plant D - 2 machines (1 Slitter, 1 Inspection)
+      {
+        machine_id: 13,
+        plant: "Plant D",
+        type: "Slitter",
+        health_score: 52,
+        status: "Critical",
+        temperature: 76,
+        vibration: 1.1,
+        load: 89,
+        rpm: 1920,
+        current: 41,
+        energy_kw: 15.8,
+        idle_time_pct: 24,
+        rul_days: 35,
+      },
+      {
+        machine_id: 14,
+        plant: "Plant D",
+        type: "Inspection",
+        health_score: 91,
+        status: "Healthy",
+        temperature: 65,
+        vibration: 0.3,
+        load: 74,
+        rpm: 2200,
+        current: 32,
+        energy_kw: 10.3,
+        idle_time_pct: 12,
+        rul_days: 195,
       },
     ]
 
     return machines
   }, [])
 
+  // Apply random walk simulation to a value
+  const applyRandomWalk = useCallback((currentValue: number, min: number, max: number, step = 1) => {
+    const change = (Math.random() - 0.5) * step
+    return Math.max(min, Math.min(max, currentValue + change))
+  }, [])
+
+  // Simulate machine data updates
+  const simulateMachineUpdates = useCallback(
+    (machines: EnhancedMachine[]): EnhancedMachine[] => {
+      return machines.map((machine) => {
+        const newHealthScore = applyRandomWalk(machine.health_score, 40, 95, 2)
+        const newTemperature = applyRandomWalk(machine.temperature, 60, 80, 1)
+        const newEnergyKw = applyRandomWalk(machine.energy_kw, 8, 16, 0.5)
+        const newIdleTimePct = applyRandomWalk(machine.idle_time_pct, 10, 30, 1)
+        const newRulDays = Math.max(0, machine.rul_days - Math.random() * 0.1) // Slowly decrement
+
+        // Determine status based on health score
+        let status = "Healthy"
+        if (newHealthScore < 50) status = "Critical"
+        else if (newHealthScore < 75) status = "Warning"
+
+        return {
+          ...machine,
+          health_score: newHealthScore,
+          status,
+          temperature: newTemperature,
+          energy_kw: newEnergyKw,
+          idle_time_pct: newIdleTimePct,
+          rul_days: newRulDays,
+          vibration: applyRandomWalk(machine.vibration, 0.1, 2.0, 0.1),
+          load: applyRandomWalk(machine.load, 40, 95, 2),
+          rpm: applyRandomWalk(machine.rpm, 1000, 3500, 50),
+          current: applyRandomWalk(machine.current, 20, 60, 1),
+        }
+      })
+    },
+    [applyRandomWalk],
+  )
+
+  // Filter machines based on current selections and user permissions
+  const getFilteredMachines = useCallback(
+    (machines: EnhancedMachine[]) => {
+      return machines.filter((machine) => {
+        // Filter by user's assigned plants
+        if (!currentUser.assignedPlants.includes(machine.plant)) {
+          return false
+        }
+
+        // Filter by user's allowed machine types
+        if (!currentUser.allowedTypes.includes(machine.type)) {
+          return false
+        }
+
+        // For Admin users, show all accessible machines regardless of selected plant
+        if (currentUser.role === "Admin") {
+          // Only filter by machine type if not "All"
+          if (selectedMachineType !== "All" && machine.type !== selectedMachineType) {
+            return false
+          }
+          return true
+        }
+
+        // For non-Admin users, filter by selected plant
+        if (machine.plant !== selectedPlant) {
+          return false
+        }
+
+        // Filter by selected machine type
+        if (selectedMachineType !== "All" && machine.type !== selectedMachineType) {
+          return false
+        }
+
+        return true
+      })
+    },
+    [currentUser, selectedPlant, selectedMachineType],
+  )
+
+  // Get all accessible machines (for plant overview - not filtered by selected plant)
+  const getAllAccessibleMachines = useCallback(
+    (machines: EnhancedMachine[]) => {
+      return machines.filter((machine) => {
+        // Filter by user's assigned plants
+        if (!currentUser.assignedPlants.includes(machine.plant)) {
+          return false
+        }
+
+        // Filter by user's allowed machine types
+        if (!currentUser.allowedTypes.includes(machine.type)) {
+          return false
+        }
+
+        return true
+      })
+    },
+    [currentUser],
+  )
+
+  // Update dashboard summary based on filtered machines
+  const updateDashboardSummary = useCallback(
+    (filteredMachines: EnhancedMachine[]) => {
+      const healthyMachines = filteredMachines.filter((m) => m.status === "Healthy").length
+      const warningMachines = filteredMachines.filter((m) => m.status === "Warning").length
+      const criticalMachines = filteredMachines.filter((m) => m.status === "Critical").length
+
+      const avgHealthScore =
+        filteredMachines.length > 0
+          ? filteredMachines.reduce((sum, m) => sum + m.health_score, 0) / filteredMachines.length
+          : 0
+
+      const totalEnergyConsumption = filteredMachines.reduce((sum, m) => sum + m.energy_kw, 0) * 24 * 7 // Weekly consumption
+      const avgEfficiency =
+        filteredMachines.length > 0
+          ? filteredMachines.reduce((sum, m) => sum + (100 - m.idle_time_pct), 0) / filteredMachines.length
+          : 0
+
+      let recentAnomalies = dashboardSummary.recent_anomalies
+      if (simulatedMode) {
+        recentAnomalies = Math.max(0, recentAnomalies + Math.floor((Math.random() - 0.5) * 2))
+      }
+
+      setDashboardSummary({
+        total_machines: filteredMachines.length,
+        healthy_machines: healthyMachines,
+        warning_machines: warningMachines,
+        critical_machines: criticalMachines,
+        avg_health_score: avgHealthScore,
+        recent_anomalies: recentAnomalies,
+        total_batches: 45 + Math.floor(Math.random() * 10 - 5),
+        avg_efficiency: avgEfficiency,
+        total_defects: 12 + Math.floor(Math.random() * 6 - 3),
+        total_energy_consumption: totalEnergyConsumption,
+        potential_energy_savings: totalEnergyConsumption * 0.15, // 15% potential savings
+        estimated_roi_days: 145,
+        last_updated: new Date().toLocaleString(),
+      })
+    },
+    [dashboardSummary.recent_anomalies, simulatedMode],
+  )
+
   // Generate energy data with realistic patterns
   const generateEnergyData = useCallback(() => {
-    const machines = generateMachineStatus()
+    const machines = getFilteredMachines(machineStatus)
 
     // Calculate daily energy consumption for each machine (last 7 days)
     const dailyEnergyByMachine = machines.map((machine) => {
@@ -275,81 +594,86 @@ export function useMockData() {
       energy_efficiency: energyEfficiency,
       roi_data: roiData,
     }
-  }, [generateMachineStatus])
+  }, [machineStatus, getFilteredMachines])
 
   // Generate anomalies with realistic patterns
-  const generateAnomalies = useCallback((machineId = 1) => {
-    // More anomalies for machines in worse condition
-    const anomalyCount = machineId === 5 ? 3 : machineId === 3 ? 2 : 1
+  const generateAnomalies = useCallback(
+    (machineId = 1) => {
+      const machine = machineStatus.find((m) => m.machine_id === machineId)
+      if (!machine) return []
 
-    const anomalies = []
-    const now = new Date()
+      // More anomalies for machines in worse condition
+      const anomalyCount = machine.status === "Critical" ? 3 : machine.status === "Warning" ? 2 : 1
 
-    for (let i = 0; i < anomalyCount; i++) {
-      // Distribute anomalies over the last 24 hours
-      const hoursAgo = Math.floor(Math.random() * 24)
-      const timestamp = new Date(now.getTime() - hoursAgo * 3600000)
+      const anomalies = []
+      const now = new Date()
 
-      // Generate anomaly data based on machine condition
-      let temperature, vibration, load, rpm, current, energy_kw, anomalyScore
+      for (let i = 0; i < anomalyCount; i++) {
+        // Distribute anomalies over the last 24 hours
+        const hoursAgo = Math.floor(Math.random() * 24)
+        const timestamp = new Date(now.getTime() - hoursAgo * 3600000)
 
-      if (machineId === 5) {
-        // Critical machine - severe anomalies
-        temperature = 78 + Math.random() * 8
-        vibration = 1.2 + Math.random() * 0.8
-        load = 90 + Math.random() * 5
-        rpm = 1900 - Math.random() * 200
-        current = 42 + Math.random() * 8
-        energy_kw = 16.5 + Math.random() * 3
-        anomalyScore = 0.8 + Math.random() * 0.2
-      } else if (machineId === 3) {
-        // Warning machine - moderate anomalies
-        temperature = 72 + Math.random() * 6
-        vibration = 0.6 + Math.random() * 0.4
-        load = 85 + Math.random() * 5
-        rpm = 2050 - Math.random() * 150
-        current = 38 + Math.random() * 5
-        energy_kw = 13.8 + Math.random() * 2
-        anomalyScore = 0.6 + Math.random() * 0.2
-      } else {
-        // Healthy machines - mild anomalies
-        temperature = 65 + Math.random() * 5
-        vibration = 0.3 + Math.random() * 0.3
-        load = 75 + Math.random() * 5
-        rpm = 2200 - Math.random() * 100
-        current = 32 + Math.random() * 3
-        energy_kw = 10.2 + Math.random() * 1.5
-        anomalyScore = 0.4 + Math.random() * 0.2
+        // Generate anomaly data based on machine condition
+        let temperature, vibration, load, rpm, current, energy_kw, anomalyScore
+
+        if (machine.status === "Critical") {
+          // Critical machine - severe anomalies
+          temperature = 78 + Math.random() * 8
+          vibration = 1.2 + Math.random() * 0.8
+          load = 90 + Math.random() * 5
+          rpm = 1900 - Math.random() * 200
+          current = 42 + Math.random() * 8
+          energy_kw = 16.5 + Math.random() * 3
+          anomalyScore = 0.8 + Math.random() * 0.2
+        } else if (machine.status === "Warning") {
+          // Warning machine - moderate anomalies
+          temperature = 72 + Math.random() * 6
+          vibration = 0.6 + Math.random() * 0.4
+          load = 85 + Math.random() * 5
+          rpm = 2050 - Math.random() * 150
+          current = 38 + Math.random() * 5
+          energy_kw = 13.8 + Math.random() * 2
+          anomalyScore = 0.6 + Math.random() * 0.2
+        } else {
+          // Healthy machines - mild anomalies
+          temperature = 65 + Math.random() * 5
+          vibration = 0.3 + Math.random() * 0.3
+          load = 75 + Math.random() * 5
+          rpm = 2200 - Math.random() * 100
+          current = 32 + Math.random() * 3
+          energy_kw = 10.2 + Math.random() * 1.5
+          anomalyScore = 0.4 + Math.random() * 0.2
+        }
+
+        anomalies.push({
+          machine_id: machineId,
+          timestamp: timestamp.toLocaleString(),
+          temperature,
+          vibration,
+          load,
+          rpm,
+          current,
+          energy_kw,
+          anomaly_score: anomalyScore,
+          health_score: machine.health_score,
+        })
       }
 
-      anomalies.push({
-        machine_id: machineId,
-        timestamp: timestamp.toLocaleString(),
-        temperature,
-        vibration,
-        load,
-        rpm,
-        current,
-        energy_kw,
-        anomaly_score: anomalyScore,
-        health_score: machineId === 5 ? 45 : machineId === 3 ? 71 : 85,
-      })
-    }
-
-    // Sort by timestamp (most recent first)
-    return anomalies.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-  }, [])
+      // Sort by timestamp (most recent first)
+      return anomalies.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    },
+    [machineStatus],
+  )
 
   // Generate production insights with realistic efficiency patterns
   const generateProductionInsights = useCallback(() => {
+    const filteredMachines = getFilteredMachines(machineStatus)
+
     // Efficiency by machine with small variations
-    const efficiencyByMachine = [
-      { machine_id: 1, avg_efficiency: 92 + (Math.random() * 4 - 2) },
-      { machine_id: 2, avg_efficiency: 85 + (Math.random() * 4 - 2) },
-      { machine_id: 3, avg_efficiency: 78 + (Math.random() * 4 - 2) },
-      { machine_id: 4, avg_efficiency: 88 + (Math.random() * 4 - 2) },
-      { machine_id: 5, avg_efficiency: 65 + (Math.random() * 4 - 2) },
-    ]
+    const efficiencyByMachine = filteredMachines.map((machine) => ({
+      machine_id: machine.machine_id,
+      avg_efficiency: 100 - machine.idle_time_pct + (Math.random() * 4 - 2),
+    }))
 
     // Efficiency by product with variations
     const efficiencyByProduct = [
@@ -370,13 +694,15 @@ export function useMockData() {
     ]
 
     // Defect rates by machine with variations
-    const defectsByMachine = [
-      { machine_id: 1, avg_defect_rate: 0.8 + (Math.random() * 0.4 - 0.2) },
-      { machine_id: 2, avg_defect_rate: 1.2 + (Math.random() * 0.4 - 0.2) },
-      { machine_id: 3, avg_defect_rate: 2.1 + (Math.random() * 0.6 - 0.3) },
-      { machine_id: 4, avg_defect_rate: 1.0 + (Math.random() * 0.4 - 0.2) },
-      { machine_id: 5, avg_defect_rate: 3.5 + (Math.random() * 0.8 - 0.4) },
-    ]
+    const defectsByMachine = filteredMachines.map((machine) => ({
+      machine_id: machine.machine_id,
+      avg_defect_rate:
+        machine.status === "Critical"
+          ? 3.5 + (Math.random() * 0.8 - 0.4)
+          : machine.status === "Warning"
+            ? 2.1 + (Math.random() * 0.6 - 0.3)
+            : 0.8 + (Math.random() * 0.4 - 0.2),
+    }))
 
     // Find the most efficient machine
     const mostEfficientMachine = [...efficiencyByMachine].sort((a, b) => b.avg_efficiency - a.avg_efficiency)[0]
@@ -398,14 +724,26 @@ export function useMockData() {
     )[0]
 
     // Generate dynamic recommendations
-    const recommendations = [
-      `Machine 5 is a bottleneck with ${efficiencyByMachine[4].avg_efficiency.toFixed(1)}% efficiency. Consider maintenance or load redistribution.`,
-      `Produce ${mostEfficientProduct.product_type} on Machine ${mostEfficientMachine.machine_id} for best efficiency (${mostEfficientMachine.avg_efficiency.toFixed(1)}%).`,
-      `${highestEnergyProduct.product_type} consumes the most energy (${highestEnergyProduct.avg_energy_consumption.toFixed(1)} kWh). Consider scheduling during off-peak hours.`,
-      `Machine ${defectsByMachine[4].machine_id} has the highest defect rate (${defectsByMachine[4].avg_defect_rate.toFixed(1)}%). Quality inspection recommended.`,
-      `Machine ${highestIdleMachine.machine_id} has ${highestIdleMachine.idle_time_pct}% idle time, wasting ${highestIdleMachine.energy_waste_kwh} kWh. Potential savings: $${highestIdleMachine.potential_savings_usd}/week.`,
-      `Reducing idle time across all machines could save approximately $${energyData.roi_data.energy_savings_per_year} per year.`,
-    ]
+    const recommendations = []
+
+    if (filteredMachines.length > 0) {
+      const criticalMachines = filteredMachines.filter((m) => m.status === "Critical")
+      if (criticalMachines.length > 0) {
+        recommendations.push(`Machine ${criticalMachines[0].machine_id} is critical and needs immediate attention.`)
+      }
+
+      if (mostEfficientMachine) {
+        recommendations.push(
+          `Machine ${mostEfficientMachine.machine_id} is performing best with ${mostEfficientMachine.avg_efficiency.toFixed(1)}% efficiency.`,
+        )
+      }
+
+      if (highestIdleMachine) {
+        recommendations.push(
+          `Machine ${highestIdleMachine.machine_id} has high idle time (${highestIdleMachine.idle_time_pct}%). Consider workflow optimization.`,
+        )
+      }
+    }
 
     return {
       efficiency_by_machine: efficiencyByMachine,
@@ -414,198 +752,93 @@ export function useMockData() {
       defects_by_machine: defectsByMachine,
       recommendations,
     }
-  }, [generateEnergyData])
+  }, [machineStatus, getFilteredMachines, generateEnergyData])
 
   // Generate RUL prediction with slight variations
-  const generateRulPrediction = useCallback((machineId = 1) => {
-    const rulMap = {
-      1: { rul_days: 180, health_score: 92 },
-      2: { rul_days: 165, health_score: 85 },
-      3: { rul_days: 95, health_score: 71 },
-      4: { rul_days: 200, health_score: 88 },
-      5: { rul_days: 25, health_score: 45 },
-    }
+  const generateRulPrediction = useCallback(
+    (machineId = 1) => {
+      const machine = machineStatus.find((m) => m.machine_id === machineId)
+      if (!machine)
+        return { machine_id: machineId, rul_days: 0, health_score: 0, last_updated: new Date().toLocaleString() }
 
-    const base = rulMap[machineId]
-
-    return {
-      machine_id: machineId,
-      rul_days: base.rul_days + (Math.random() * 10 - 5),
-      health_score: base.health_score + (Math.random() * 3 - 1.5),
-      last_updated: new Date().toLocaleString(),
-    }
-  }, [])
+      return {
+        machine_id: machineId,
+        rul_days: machine.rul_days + (Math.random() * 10 - 5),
+        health_score: machine.health_score + (Math.random() * 3 - 1.5),
+        last_updated: new Date().toLocaleString(),
+      }
+    },
+    [machineStatus],
+  )
 
   // Generate alerts with realistic messages including energy alerts
   const generateAlerts = useCallback(() => {
     const now = new Date()
-    const energyData = generateEnergyData()
+    const filteredMachines = getFilteredMachines(machineStatus)
+    const alerts = []
 
-    const alerts = [
-      {
-        type: "critical",
-        machine_id: 5,
-        message: `Machine 5 health is critical (${(45 + (Math.random() * 3 - 1.5)).toFixed(1)}%)`,
-        timestamp: new Date(now.getTime() - Math.random() * 3600000).toLocaleString(),
-        priority: "high",
-      },
-      {
-        type: "maintenance",
-        machine_id: 5,
-        message: `Machine 5 needs maintenance soon (RUL: ${(25 + (Math.random() * 3 - 1.5)).toFixed(0)} days)`,
-        timestamp: new Date(now.getTime() - Math.random() * 7200000).toLocaleString(),
-        priority: "high",
-      },
-      {
-        type: "warning",
-        machine_id: 3,
-        message: `Machine 3 health needs attention (${(71 + (Math.random() * 3 - 1.5)).toFixed(1)}%)`,
-        timestamp: new Date(now.getTime() - Math.random() * 10800000).toLocaleString(),
-        priority: "medium",
-      },
-    ]
+    filteredMachines.forEach((machine) => {
+      if (machine.status === "Critical") {
+        alerts.push({
+          type: "critical",
+          machine_id: machine.machine_id,
+          message: `Machine ${machine.machine_id} health is critical (${machine.health_score.toFixed(1)}%)`,
+          timestamp: new Date(now.getTime() - Math.random() * 3600000).toLocaleString(),
+          priority: "high",
+        })
 
-    // Add energy-related alerts
-    const highestIdleMachine = [...energyData.idle_time_waste].sort(
-      (a, b) => Number.parseFloat(b.idle_time_pct) - Number.parseFloat(a.idle_time_pct),
-    )[0]
+        alerts.push({
+          type: "maintenance",
+          machine_id: machine.machine_id,
+          message: `Machine ${machine.machine_id} needs maintenance soon (RUL: ${machine.rul_days.toFixed(0)} days)`,
+          timestamp: new Date(now.getTime() - Math.random() * 7200000).toLocaleString(),
+          priority: "high",
+        })
+      } else if (machine.status === "Warning") {
+        alerts.push({
+          type: "warning",
+          machine_id: machine.machine_id,
+          message: `Machine ${machine.machine_id} health needs attention (${machine.health_score.toFixed(1)}%)`,
+          timestamp: new Date(now.getTime() - Math.random() * 10800000).toLocaleString(),
+          priority: "medium",
+        })
+      }
 
-    alerts.push({
-      type: "energy",
-      machine_id: Number.parseInt(highestIdleMachine.machine_id),
-      message: `High idle time on Machine ${highestIdleMachine.machine_id} (${highestIdleMachine.idle_time_pct}%). Wasting ${highestIdleMachine.energy_waste_kwh} kWh/week.`,
-      timestamp: new Date(now.getTime() - Math.random() * 5400000).toLocaleString(),
-      priority: "medium",
+      // Add energy-related alerts for high idle time
+      if (machine.idle_time_pct > 20) {
+        alerts.push({
+          type: "energy",
+          machine_id: machine.machine_id,
+          message: `High idle time on Machine ${machine.machine_id} (${machine.idle_time_pct.toFixed(1)}%). Energy waste detected.`,
+          timestamp: new Date(now.getTime() - Math.random() * 5400000).toLocaleString(),
+          priority: "medium",
+        })
+      }
     })
-
-    // Find machine with abnormal energy consumption
-    const machineWithEnergyAnomaly = Math.floor(Math.random() * 5) + 1
-
-    if (machineWithEnergyAnomaly !== Number.parseInt(highestIdleMachine.machine_id)) {
-      alerts.push({
-        type: "energy",
-        machine_id: machineWithEnergyAnomaly,
-        message: `Abnormal energy consumption on Machine ${machineWithEnergyAnomaly}. 15% above baseline.`,
-        timestamp: new Date(now.getTime() - Math.random() * 9000000).toLocaleString(),
-        priority: "medium",
-      })
-    }
-
-    // Add a random alert occasionally
-    if (Math.random() < 0.3) {
-      const randomMachine = Math.floor(Math.random() * 5) + 1
-      alerts.push({
-        type: "anomaly",
-        machine_id: randomMachine,
-        message: `Anomaly detected on Machine ${randomMachine} (score: ${(0.7 + Math.random() * 0.2).toFixed(2)})`,
-        timestamp: new Date(now.getTime() - Math.random() * 14400000).toLocaleString(),
-        priority: randomMachine === 5 ? "high" : randomMachine === 3 ? "medium" : "low",
-      })
-    }
 
     return alerts.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-  }, [generateEnergyData])
-
-  // Update dashboard summary with realistic variations
-  const updateDashboardSummary = useCallback(() => {
-    const healthyMachines = 3 + (Math.random() < 0.2 ? -1 : 0)
-    const warningMachines = 1 + (Math.random() < 0.2 ? 1 : 0)
-    const criticalMachines = 5 - healthyMachines - warningMachines
-
-    const energyData = generateEnergyData()
-    const totalEnergyConsumption = 4250 + (Math.random() * 200 - 100)
-    const potentialEnergySavings = Number.parseFloat(
-      energyData.idle_time_waste
-        .reduce((sum, machine) => sum + Number.parseFloat(machine.energy_waste_kwh), 0)
-        .toFixed(0),
-    )
-
-    // Calculate ROI days based on energy savings and maintenance savings
-    const dailySavings = Number.parseFloat(energyData.roi_data.total_savings_per_year) / 365
-    const initialInvestment = 50000
-    const estimatedRoiDays = Math.round(initialInvestment / dailySavings)
-
-    setDashboardSummary({
-      total_machines: 5,
-      healthy_machines: healthyMachines,
-      warning_machines: warningMachines,
-      critical_machines: criticalMachines,
-      avg_health_score: 78.5 + (Math.random() * 3 - 1.5),
-      recent_anomalies: 2 + (Math.random() < 0.3 ? 1 : 0),
-      total_batches: 45 + (Math.random() * 4 - 2),
-      avg_efficiency: 85.2 + (Math.random() * 2 - 1),
-      total_defects: 12 + (Math.random() * 3 - 1.5),
-      total_energy_consumption: totalEnergyConsumption,
-      potential_energy_savings: potentialEnergySavings,
-      estimated_roi_days: estimatedRoiDays,
-      last_updated: new Date().toLocaleString(),
-    })
-  }, [generateEnergyData])
-
-  // Generate plant data
-  const generatePlantData = useCallback(() => {
-    const plants = [
-      {
-        plant_id: 1,
-        plant_name: "Plant 1",
-        location: "East Wing",
-        total_machines: 3,
-        healthy_machines: 2,
-        warning_machines: 1,
-        critical_machines: 0,
-        avg_health_score: 87.5 + (Math.random() * 3 - 1.5),
-        avg_energy_consumption: 1250 + (Math.random() * 100 - 50),
-        avg_efficiency: 88.2 + (Math.random() * 2 - 1),
-      },
-      {
-        plant_id: 2,
-        plant_name: "Plant 2",
-        location: "West Wing",
-        total_machines: 2,
-        healthy_machines: 1,
-        warning_machines: 0,
-        critical_machines: 1,
-        avg_health_score: 65.8 + (Math.random() * 3 - 1.5),
-        avg_energy_consumption: 980 + (Math.random() * 100 - 50),
-        avg_efficiency: 72.5 + (Math.random() * 2 - 1),
-      },
-    ]
-
-    // Map machines to plants
-    const machineToPlantMap = {
-      1: 1, // Machine 1 belongs to Plant 1
-      2: 1, // Machine 2 belongs to Plant 1
-      3: 1, // Machine 3 belongs to Plant 1
-      4: 2, // Machine 4 belongs to Plant 2
-      5: 2, // Machine 5 belongs to Plant 2
-    }
-
-    return { plants, machineToPlantMap }
-  }, [])
-
-  const [plantData, setPlantData] = useState({ plants: [], machineToPlantMap: {} })
+  }, [machineStatus, getFilteredMachines])
 
   // Function to refresh all data
   const refreshData = useCallback(() => {
-    updateDashboardSummary()
-    setMachineStatus(generateMachineStatus())
+    const filtered = getFilteredMachines(machineStatus)
+    updateDashboardSummary(filtered)
     setAlerts(generateAlerts())
     setSensorHistory(generateSensorData(selectedMachineId, selectedMetric))
     setAnomalies(generateAnomalies(selectedMachineId))
     setProductionInsights(generateProductionInsights())
     setRulPrediction(generateRulPrediction(selectedMachineId))
     setEnergyData(generateEnergyData())
-    setPlantData(generatePlantData())
   }, [
-    generateMachineStatus,
+    machineStatus,
+    getFilteredMachines,
+    updateDashboardSummary,
     generateAlerts,
     generateSensorData,
     generateAnomalies,
     generateProductionInsights,
     generateRulPrediction,
     generateEnergyData,
-    generatePlantData,
-    updateDashboardSummary,
     selectedMachineId,
     selectedMetric,
   ])
@@ -622,28 +855,69 @@ export function useMockData() {
     [generateSensorData, generateAnomalies, generateRulPrediction],
   )
 
-  // Initialize data on component mount
+  // Initialize base machine data
   useEffect(() => {
-    refreshData()
+    const baseData = generateBaseMachineStatus()
+    setBaseMachineStatus(baseData)
+    setMachineStatus(baseData)
+  }, [generateBaseMachineStatus])
 
-    // Optional: Set up an interval to refresh data periodically
+  // Update filtered data when filters change
+  useEffect(() => {
+    if (baseMachineStatus.length > 0) {
+      const currentMachines = simulatedMode ? machineStatus : baseMachineStatus
+      const filtered = getFilteredMachines(currentMachines)
+      updateDashboardSummary(filtered)
+      setAlerts(generateAlerts())
+      setProductionInsights(generateProductionInsights())
+      setEnergyData(generateEnergyData())
+    }
+  }, [
+    selectedPlant,
+    selectedMachineType,
+    currentUser,
+    baseMachineStatus,
+    simulatedMode,
+    machineStatus,
+    getFilteredMachines,
+    updateDashboardSummary,
+    generateAlerts,
+    generateProductionInsights,
+    generateEnergyData,
+  ])
+
+  // Simulation interval
+  useEffect(() => {
+    if (!simulatedMode || baseMachineStatus.length === 0) return
+
     const intervalId = setInterval(() => {
-      refreshData()
-    }, 60000) // Refresh every minute
+      setMachineStatus((prevMachines) => {
+        const updatedMachines = simulateMachineUpdates(prevMachines)
+        return updatedMachines
+      })
+    }, 2000) // Update every 2 seconds
 
     return () => clearInterval(intervalId)
-  }, [refreshData])
+  }, [simulatedMode, baseMachineStatus, simulateMachineUpdates])
+
+  // Initial data load
+  useEffect(() => {
+    if (baseMachineStatus.length > 0) {
+      refreshData()
+    }
+  }, [baseMachineStatus, refreshData])
 
   return {
     dashboardSummary,
-    machineStatus,
+    machineStatus: getFilteredMachines(machineStatus),
+    // Export all accessible machines for plant overview (not filtered by selected plant)
+    allMachineStatus: getAllAccessibleMachines(simulatedMode ? machineStatus : baseMachineStatus),
     alerts,
     sensorHistory,
     anomalies,
     productionInsights,
     rulPrediction,
     energyData,
-    plantData,
     refreshData,
     updateSensorData,
   }

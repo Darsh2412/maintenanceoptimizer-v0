@@ -1,205 +1,297 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Factory, Check, AlertTriangle, AlertCircle, Zap } from "lucide-react"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts"
-import { PieChart, Pie } from "recharts"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { useSession } from "@/contexts/session-context"
+import { useMockData } from "@/hooks/use-mock-data"
+import { Factory, Activity, Zap, TrendingUp } from "lucide-react"
 
-interface Plant {
-  plant_id: number
-  plant_name: string
-  location: string
-  total_machines: number
-  healthy_machines: number
-  warning_machines: number
-  critical_machines: number
-  avg_health_score: number
-  avg_energy_consumption: number
-  avg_efficiency: number
-}
+export function PlantOverview() {
+  const { currentUser } = useSession()
+  const { allMachineStatus } = useMockData()
 
-interface PlantOverviewProps {
-  plants: Plant[]
-  machineToPlantMap: Record<number, number>
-  machines: any[]
-}
+  // Group machines by plant
+  const machinesByPlant = allMachineStatus.reduce(
+    (acc, machine) => {
+      if (!acc[machine.plant]) {
+        acc[machine.plant] = []
+      }
+      acc[machine.plant].push(machine)
+      return acc
+    },
+    {} as Record<string, typeof allMachineStatus>,
+  )
 
-export function PlantOverview({ plants, machineToPlantMap, machines }: PlantOverviewProps) {
-  // Transform data for machine distribution chart
-  const machineDistributionData = plants.map((plant) => ({
-    name: plant.plant_name,
-    total: plant.total_machines,
-    healthy: plant.healthy_machines,
-    warning: plant.warning_machines,
-    critical: plant.critical_machines,
-  }))
+  // Calculate plant statistics
+  const getPlantStats = (plantMachines: typeof allMachineStatus) => {
+    const total = plantMachines.length
+    const healthy = plantMachines.filter((m) => m.status === "Healthy").length
+    const warning = plantMachines.filter((m) => m.status === "Warning").length
+    const critical = plantMachines.filter((m) => m.status === "Critical").length
+    const avgHealth = total > 0 ? plantMachines.reduce((sum, m) => sum + m.health_score, 0) / total : 0
+    const totalEnergy = plantMachines.reduce((sum, m) => sum + m.energy_kw, 0)
+    const avgEfficiency = total > 0 ? plantMachines.reduce((sum, m) => sum + (100 - m.idle_time_pct), 0) / total : 0
 
-  // Transform data for health score comparison
-  const healthScoreData = plants.map((plant) => ({
-    name: plant.plant_name,
-    value: plant.avg_health_score,
-    fill: plant.avg_health_score > 80 ? "#10b981" : plant.avg_health_score > 60 ? "#f59e0b" : "#ef4444",
-  }))
-
-  // Transform data for energy consumption
-  const energyData = plants.map((plant) => ({
-    name: plant.plant_name,
-    value: plant.avg_energy_consumption,
-    fill: "#0ea5e9",
-  }))
-
-  // Custom tooltip for bar chart
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white dark:bg-gray-800 p-2 sm:p-3 border border-gray-200 dark:border-gray-700 rounded shadow-md text-xs sm:text-sm">
-          <p className="font-medium">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.fill }}>
-              {`${entry.name}: ${entry.value}`}
-            </p>
-          ))}
-        </div>
-      )
+    return {
+      total,
+      healthy,
+      warning,
+      critical,
+      avgHealth,
+      totalEnergy,
+      avgEfficiency,
     }
-    return null
+  }
+
+  const getHealthColor = (score: number) => {
+    if (score >= 80) return "text-green-600"
+    if (score >= 60) return "text-amber-600"
+    return "text-red-600"
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Healthy":
+        return "bg-green-100 text-green-800 border-green-200"
+      case "Warning":
+        return "bg-amber-100 text-amber-800 border-amber-200"
+      case "Critical":
+        return "bg-red-100 text-red-800 border-red-200"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200"
+    }
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Factory className="w-6 h-6 text-blue-600" />
+        <h2 className="text-2xl font-bold">Plant Overview</h2>
+        <Badge variant="outline" className="ml-2">
+          {currentUser.assignedPlants.length} Plant{currentUser.assignedPlants.length !== 1 ? "s" : ""} Accessible
+        </Badge>
+      </div>
+
+      {/* Plant Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {currentUser.assignedPlants.map((plantName) => {
+          const plantMachines = machinesByPlant[plantName] || []
+          const stats = getPlantStats(plantMachines)
+
+          return (
+            <Card key={plantName} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Factory className="w-5 h-5 text-blue-600" />
+                    {plantName}
+                  </CardTitle>
+                  <Badge variant="outline">{stats.total} Machines</Badge>
+                </div>
+                <CardDescription>Production facility overview</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {stats.total > 0 ? (
+                  <>
+                    {/* Health Score */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Average Health</span>
+                        <span className={`text-sm font-bold ${getHealthColor(stats.avgHealth)}`}>
+                          {stats.avgHealth.toFixed(1)}%
+                        </span>
+                      </div>
+                      <Progress value={stats.avgHealth} className="h-2" />
+                    </div>
+
+                    {/* Machine Status Distribution */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="text-center p-2 bg-green-50 rounded-lg">
+                        <div className="text-lg font-bold text-green-600">{stats.healthy}</div>
+                        <div className="text-xs text-green-700">Healthy</div>
+                      </div>
+                      <div className="text-center p-2 bg-amber-50 rounded-lg">
+                        <div className="text-lg font-bold text-amber-600">{stats.warning}</div>
+                        <div className="text-xs text-amber-700">Warning</div>
+                      </div>
+                      <div className="text-center p-2 bg-red-50 rounded-lg">
+                        <div className="text-lg font-bold text-red-600">{stats.critical}</div>
+                        <div className="text-xs text-red-700">Critical</div>
+                      </div>
+                    </div>
+
+                    {/* Key Metrics */}
+                    <div className="space-y-2 pt-2 border-t">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <Zap className="w-4 h-4 text-amber-500" />
+                          <span className="text-sm">Energy Usage</span>
+                        </div>
+                        <span className="text-sm font-medium">{stats.totalEnergy.toFixed(1)} kW</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <TrendingUp className="w-4 h-4 text-green-500" />
+                          <span className="text-sm">Efficiency</span>
+                        </div>
+                        <span className="text-sm font-medium">{stats.avgEfficiency.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Factory className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>No machines accessible in this plant</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Detailed Machine List */}
       <Card>
-        <CardHeader className="flex flex-row items-center space-x-2 px-4 py-3 sm:px-6 sm:py-4">
-          <Factory className="w-4 h-4 sm:w-5 sm:h-5" />
-          <CardTitle className="text-base sm:text-lg">Plant Overview</CardTitle>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Machine Details
+          </CardTitle>
+          <CardDescription>Detailed view of all accessible machines across all plants</CardDescription>
         </CardHeader>
-        <CardContent className="px-3 py-2 sm:px-6 sm:py-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {/* Plant Machine Distribution Chart */}
-            <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-              <h3 className="text-sm sm:text-base font-medium mb-2 sm:mb-4">Machine Distribution by Plant</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={machineDistributionData}
-                    margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-                    barSize={30}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-                    <XAxis dataKey="name" tick={{ fontSize: "0.7rem" }} />
-                    <YAxis tick={{ fontSize: "0.7rem" }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: "0.7rem" }} />
-                    <Bar dataKey="healthy" name="Healthy" fill="#10b981" />
-                    <Bar dataKey="warning" name="Warning" fill="#f59e0b" />
-                    <Bar dataKey="critical" name="Critical" fill="#ef4444" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+        <CardContent>
+          <div className="space-y-6">
+            {currentUser.assignedPlants.map((plantName) => {
+              const plantMachines = machinesByPlant[plantName] || []
 
-            {/* Plant Health Score Comparison */}
-            <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-              <h3 className="text-sm sm:text-base font-medium mb-2 sm:mb-4">Plant Health Comparison</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={healthScoreData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={30}
-                        outerRadius={60}
-                        paddingAngle={5}
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value.toFixed(1)}%`}
-                        labelLine={false}
-                      >
-                        {healthScoreData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={energyData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={30}
-                        outerRadius={60}
-                        paddingAngle={5}
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value.toFixed(0)} kWh`}
-                        labelLine={false}
-                      >
-                        {energyData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => `${Number(value).toFixed(0)} kWh`} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
+              return (
+                <div key={plantName} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg flex items-center gap-2">
+                      <Factory className="w-4 h-4 text-blue-600" />
+                      {plantName}
+                    </h3>
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                      {plantMachines.length} Machine{plantMachines.length !== 1 ? "s" : ""}
+                    </Badge>
+                  </div>
 
-          {/* Plant Details Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-4 sm:mt-6">
-            {plants.map((plant) => (
-              <div key={plant.plant_id} className="border rounded-lg p-3 sm:p-4 dark:border-gray-700">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm sm:text-base font-medium">{plant.plant_name}</h3>
-                  <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">{plant.location}</span>
+                  {plantMachines.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {plantMachines.map((machine) => (
+                        <div
+                          key={machine.machine_id}
+                          className="p-3 border rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium">Machine {machine.machine_id}</span>
+                            <Badge variant="outline" className={getStatusColor(machine.status)}>
+                              {machine.status}
+                            </Badge>
+                          </div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                              <span>{machine.type}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Health:</span>
+                              <span className={getHealthColor(machine.health_score)}>
+                                {machine.health_score.toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Energy:</span>
+                              <span>{machine.energy_kw.toFixed(1)} kW</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">RUL:</span>
+                              <span>{machine.rul_days.toFixed(0)} days</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Efficiency:</span>
+                              <span>{(100 - machine.idle_time_pct).toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+                      <Factory className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No accessible machines in {plantName}</p>
+                    </div>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                  <div className="flex items-center">
-                    <div className="bg-green-500 text-white p-1.5 sm:p-2 rounded-full mr-2">
-                      <Check className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Healthy</p>
-                      <p className="text-sm sm:text-base font-medium">{plant.healthy_machines}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="bg-yellow-500 text-white p-1.5 sm:p-2 rounded-full mr-2">
-                      <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Warning</p>
-                      <p className="text-sm sm:text-base font-medium">{plant.warning_machines}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="bg-red-500 text-white p-1.5 sm:p-2 rounded-full mr-2">
-                      <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Critical</p>
-                      <p className="text-sm sm:text-base font-medium">{plant.critical_machines}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="bg-blue-500 text-white p-1.5 sm:p-2 rounded-full mr-2">
-                      <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Efficiency</p>
-                      <p className="text-sm sm:text-base font-medium">{plant.avg_efficiency.toFixed(1)}%</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </CardContent>
       </Card>
+
+      {/* Plant Summary Statistics */}
+      {allMachineStatus.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Overall Statistics
+            </CardTitle>
+            <CardDescription>Aggregated statistics across all accessible plants</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">{allMachineStatus.length}</div>
+                <div className="text-sm text-blue-700">Total Machines</div>
+              </div>
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">
+                  {allMachineStatus.filter((m) => m.status === "Healthy").length}
+                </div>
+                <div className="text-sm text-green-700">Healthy</div>
+              </div>
+              <div className="text-center p-4 bg-amber-50 rounded-lg">
+                <div className="text-2xl font-bold text-amber-600">
+                  {allMachineStatus.filter((m) => m.status === "Warning").length}
+                </div>
+                <div className="text-sm text-amber-700">Warning</div>
+              </div>
+              <div className="text-center p-4 bg-red-50 rounded-lg">
+                <div className="text-2xl font-bold text-red-600">
+                  {allMachineStatus.filter((m) => m.status === "Critical").length}
+                </div>
+                <div className="text-sm text-red-700">Critical</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <div className="text-xl font-bold text-gray-700">
+                  {(allMachineStatus.reduce((sum, m) => sum + m.health_score, 0) / allMachineStatus.length).toFixed(1)}%
+                </div>
+                <div className="text-sm text-gray-600">Average Health</div>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <div className="text-xl font-bold text-gray-700">
+                  {allMachineStatus.reduce((sum, m) => sum + m.energy_kw, 0).toFixed(1)} kW
+                </div>
+                <div className="text-sm text-gray-600">Total Energy Usage</div>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <div className="text-xl font-bold text-gray-700">
+                  {(
+                    allMachineStatus.reduce((sum, m) => sum + (100 - m.idle_time_pct), 0) / allMachineStatus.length
+                  ).toFixed(1)}
+                  %
+                </div>
+                <div className="text-sm text-gray-600">Average Efficiency</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
